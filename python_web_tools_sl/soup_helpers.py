@@ -151,6 +151,12 @@ def soup_from_text(text: str, parser: str = "html.parser") -> BeautifulSoup:
     return BeautifulSoup(text, features=parser)
 
 
+def select_tag(soup: BeautifulSoup, selector: str) -> dict:
+    """Select tag in soup and return dict (name:value)."""
+    items = soup.select(selector)
+    return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}  # noqa: E501
+
+
 ######################################################################################
 # LEGACY
 ######################################################################################
