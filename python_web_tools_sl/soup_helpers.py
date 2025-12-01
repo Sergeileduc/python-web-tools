@@ -4,6 +4,8 @@ import aiohttp
 import requests
 import logging
 from typing import Optional  # noqa
+import warnings
+
 
 from requests_html import AsyncHTMLSession
 
@@ -163,6 +165,12 @@ async def get_soup_lxml(url: str) -> BeautifulSoup:
         BeautifulSoup: soup
 
     """
+    warnings.warn(
+        "get_soup_lxml est obsolète, utilisez make_soup ou amake_soup",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     # get HTML page with async GET request
     async with aiohttp.ClientSession() as session:
         async with session.get(url, timeout=3, ssl=False, headers=headers) as resp:
@@ -181,6 +189,11 @@ async def get_soup_html(url: str) -> BeautifulSoup:
         BeautifulSoup: soup
 
     """
+    warnings.warn(
+        "get_soup_html est obsolète, utilisez make_soup ou amake_soup",
+        DeprecationWarning,
+        stacklevel=2
+    )
     # get HTML page with async GET request
     async with aiohttp.ClientSession() as session:
         async with session.get(url, timeout=3, ssl=False) as resp:
@@ -217,6 +230,11 @@ async def get_soup_xml(url: str) -> BeautifulSoup:
         BeautifulSoup: soup
 
     """
+    warnings.warn(
+        "get_soup_xml est obsolète, utilisez make_soup ou amake_soup",
+        DeprecationWarning,
+        stacklevel=2
+    )
     asession = AsyncHTMLSession()
     r = await asession.get(url, headers=headers, timeout=3)
     await asession.close()
