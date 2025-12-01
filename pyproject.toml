@@ -1,0 +1,28 @@
+[project]
+name = "python-web-tools"
+version = "0.1.0"
+description = "Routines de scraping HTML unifiées (requests, aiohttp, requests_html, httpx) avec BeautifulSoup."
+authors = [
+    { name = "Sergeileduc" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+
+dependencies = [
+    "requests",
+    "aiohttp",
+    "beautifulsoup4",
+    "lxml",
+    "html5lib",
+    "requests-html ; extra == 'requests_html'",
+    "httpx ; extra == 'httpx'"
+]
+
+[project.optional-dependencies]
+requests_html = ["requests-html"]
+httpx = ["httpx"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
