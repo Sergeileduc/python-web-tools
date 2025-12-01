@@ -58,7 +58,7 @@ def make_soup(
         'Example Domain'
     """
     if backend == "requests_html" and HAS_REQUESTS_HTML:
-        session = HTMLSession() # type: ignore
+        session = HTMLSession()  # type: ignore
         resp = session.get(url, timeout=timeout, verify=ssl)
         resp.html.render()  # type: ignore
         return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
@@ -106,7 +106,7 @@ async def amake_soup(
     """
     if backend == "requests_html" and HAS_REQUESTS_HTML:
         session = AsyncHTMLSession()
-        resp = await session.get(url, timeout=timeout, verify=ssl)  #type: ignore
+        resp = await session.get(url, timeout=timeout, verify=ssl)  # type: ignore
         await resp.html.arender()
         return BeautifulSoup(resp.html.html, features=parser)
 

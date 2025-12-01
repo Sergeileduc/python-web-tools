@@ -1,5 +1,5 @@
 [project]
-name = "python-web-tools"
+name = "python-web-tools-sl"
 version = "0.1.0"
 description = "Routines de scraping HTML unifiées (requests, aiohttp, requests_html, httpx) avec BeautifulSoup."
 authors = [
