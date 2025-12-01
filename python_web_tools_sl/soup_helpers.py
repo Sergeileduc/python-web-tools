@@ -58,7 +58,7 @@ def make_soup(
         >>> soup = make_soup("https://example.com")
         >>> print(soup.title.string)
         'Example Domain'
-    """
+    """  # noqa: E501
     if backend == "requests_html" and HAS_REQUESTS_HTML:
         session = HTMLSession()  # type: ignore
         resp = session.get(url, timeout=timeout, verify=ssl)
@@ -105,7 +105,7 @@ async def amake_soup(
         >>> soup = await amake_soup("https://example.com")
         >>> print(soup.title.string)
         'Example Domain'
-    """
+    """  # noqa: E501
     if backend == "requests_html" and HAS_REQUESTS_HTML:
         session = AsyncHTMLSession()
         resp = await session.get(url, timeout=timeout, verify=ssl)  # type: ignore
@@ -147,7 +147,7 @@ def soup_from_text(text: str, parser: str = "html.parser") -> BeautifulSoup:
         >>> soup = soup_from_text(html)
         >>> print(soup.title.string)
         'Hello'
-    """
+    """  # noqa: E501
     return BeautifulSoup(text, features=parser)
 
 
