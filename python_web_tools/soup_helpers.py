@@ -3,11 +3,8 @@
 import aiohttp
 import requests
 import logging
-from typing import Optional
+from typing import Optional  # noqa
 
-import backoff
-import discord
-from discord.ext import commands
 from requests_html import AsyncHTMLSession
 
 from bs4 import BeautifulSoup
@@ -61,10 +58,10 @@ def make_soup(
         'Example Domain'
     """
     if backend == "requests_html" and HAS_REQUESTS_HTML:
-        session = HTMLSession()
+        session = HTMLSession() # type: ignore
         resp = session.get(url, timeout=timeout, verify=ssl)
-        resp.html.render()
-        return BeautifulSoup(resp.html.html, features=parser)
+        resp.html.render()  # type: ignore
+        return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
     else:
         resp = requests.get(url, timeout=timeout, verify=ssl)
         resp.raise_for_status()
@@ -109,7 +106,7 @@ async def amake_soup(
     """
     if backend == "requests_html" and HAS_REQUESTS_HTML:
         session = AsyncHTMLSession()
-        resp = await session.get(url, timeout=timeout, verify=ssl)
+        resp = await session.get(url, timeout=timeout, verify=ssl)  #type: ignore
         await resp.html.arender()
         return BeautifulSoup(resp.html.html, features=parser)
 
@@ -150,3 +147,77 @@ def soup_from_text(text: str, parser: str = "html.parser") -> BeautifulSoup:
         'Hello'
     """
     return BeautifulSoup(text, features=parser)
+
+
+######################################################################################
+# LEGACY
+######################################################################################
+
+async def get_soup_lxml(url: str) -> BeautifulSoup:
+    """Return a BeautifulSoup soup from given url, Parser is lxml.
+
+    Args:
+        url (str): url
+
+    Returns:
+        BeautifulSoup: soup
+
+    """
+    # get HTML page with async GET request
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, timeout=3, ssl=False, headers=headers) as resp:
+            text = await resp.text()
+        await session.close()
+    return BeautifulSoup(text, 'lxml')
+
+
+async def get_soup_html(url: str) -> BeautifulSoup:
+    """Return a BeautifulSoup soup from given url, Parser is html.parser.
+
+    Args:
+        url (str): url
+
+    Returns:
+        BeautifulSoup: soup
+
+    """
+    # get HTML page with async GET request
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, timeout=3, ssl=False) as resp:
+            text = await resp.text()
+        await session.close()
+    # BeautifulSoup will transform raw HTML in a tree easy to parse
+    return BeautifulSoup(text, features='html.parser')
+
+
+def args_separator_for_log_function(guild, args):
+    """Check the args if there are user, channel and command."""
+    commands = ['kick', 'clear', 'ban']
+    [user, command, channel] = [None, None, None]  # They are defaulted to None, if any of them is specified, it will be changed  # noqa:E501
+    for word in args:
+        # if disc_get(guild.members, name=word) is not None: # if word is a member of the guild  # noqa:E501
+        if disc_find(lambda m: m.name.lower() == word.lower(), guild.members) is not None:  # same, but case insensitive  # noqa:E501
+            user = word.lower()
+        # elif disc_get(guild.text_channels, name=word) is not None: # if word is a channel of the guild  # noqa:E501
+        elif disc_find(lambda t: t.name.lower() == word.lower(), guild.text_channels) is not None:  # same, but case insensitive  # noqa:E501
+            channel = word.lower()
+        elif word in commands:  # if word is a command
+            command = word.lower()
+    # variables not specified in the args are defaulted to None
+    return [user, command, channel]
+
+
+async def get_soup_xml(url: str) -> BeautifulSoup:
+    """Return a BeautifulSoup soup from given url, Parser is xml.
+
+    Args:
+        url (str): url
+
+    Returns:
+        BeautifulSoup: soup
+
+    """
+    asession = AsyncHTMLSession()
+    r = await asession.get(url, headers=headers, timeout=3)
+    await asession.close()
+    return BeautifulSoup(r.text, 'xml')
