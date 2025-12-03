@@ -5,7 +5,7 @@
         "invoke"
     ],
     "python.testing.pytestArgs": [
-        "python_web_tools_sl"
+        "tests"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

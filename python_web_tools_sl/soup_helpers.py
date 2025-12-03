@@ -229,10 +229,52 @@ def soup_from_text(text: str, parser: str = "html.parser") -> BeautifulSoup:
     return BeautifulSoup(text, features=parser)
 
 
-def select_tag(soup: BeautifulSoup, selector: str) -> dict:
-    """Select tag in soup and return dict (name:value)."""
+def extract_name_value_pairs(soup, selector: str, attr: str = "value") -> dict:
+    """
+    Extrait les paires (name:attr) des balises HTML sélectionnées.
+
+    Paramètres
+    ----------
+    soup : BeautifulSoup
+        Objet BeautifulSoup représentant le DOM ou un sous-arbre.
+    selector : str
+        Sélecteur CSS pour cibler les balises (ex. "input", "meta").
+    attr : str, optionnel
+        Attribut à extraire comme valeur. Par défaut "value".
+        Exemple : "content" pour <meta>, "href" pour <a>.
+
+    Retour
+    ------
+    dict
+        Dictionnaire {name: attr} pour toutes les balises qui possèdent
+        à la fois un attribut "name" et l'attribut demandé.
+
+    Notes
+    -----
+    - Ignore les balises sans "name" ou sans l'attribut demandé.
+    - Typiquement utilisé pour construire un payload de formulaire
+      ou extraire des métadonnées.
+    - Exemple : récupérer les champs cachés (CSRF, tokens) puis compléter
+      avec email/password.
+
+    Exemples
+    --------
+    >>> html = '<input type="hidden" name="csrf" value="abc123">'
+    >>> soup = BeautifulSoup(html, "html.parser")
+    >>> extract_name_value_pairs(soup, "input")
+    {'csrf': 'abc123'}
+
+    >>> html = '<meta name="viewport" content="width=device-width">'
+    >>> soup = BeautifulSoup(html, "html.parser")
+    >>> extract_name_value_pairs(soup, "meta", attr="content")
+    {'viewport': 'width=device-width'}
+    """
     items = soup.select(selector)
-    return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}  # noqa: E501
+    return {
+        i["name"]: i[attr]
+        for i in items
+        if i.has_attr("name") and i.has_attr(attr)
+    }
 
 
 def which_backend(url, headers=None, timeout_req=8, timeout_pw=20, threshold_ratio=1.2):

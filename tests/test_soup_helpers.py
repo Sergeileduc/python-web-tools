@@ -55,6 +55,6 @@ def test_is_dynamic_and_choose_backend():
 
     for url in urls_expected.keys():
         backend = choose_backend(url, headers=HEADERS)
-        soup = make_soup(url, backend=backend, headers=HEADERS)
+        soup = make_soup(url, backend=backend, timeout=20, headers=HEADERS)
         assert soup is not None
         assert len(soup.text) > 500
