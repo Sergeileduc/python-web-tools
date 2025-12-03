@@ -179,9 +179,10 @@ async def get_soup_lxml(url: str) -> BeautifulSoup:
 
     # get HTML page with async GET request
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, timeout=3, ssl=False, headers=headers) as resp:
+        async with session.get(url,
+                               timeout=aiohttp.ClientTimeout(total=3),
+                               ssl=False, headers=headers) as resp:
             text = await resp.text()
-        await session.close()
     return BeautifulSoup(text, 'lxml')
 
 
@@ -202,9 +203,10 @@ async def get_soup_html(url: str) -> BeautifulSoup:
     )
     # get HTML page with async GET request
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, timeout=3, ssl=False) as resp:
+        async with session.get(url,
+                               timeout=aiohttp.ClientTimeout(total=3),
+                               ssl=False) as resp:
             text = await resp.text()
-        await session.close()
     # BeautifulSoup will transform raw HTML in a tree easy to parse
     return BeautifulSoup(text, features='html.parser')
 
