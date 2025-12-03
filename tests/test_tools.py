@@ -1,9 +1,12 @@
+import asyncio
+import time
+
 import pytest
 from python_web_tools_sl.soup_helpers import (make_soup, amake_soup,
                                               extract_name_value_pairs,
                                               extract_form,
                                               extract_form_from_url,
-                                              aextract_form_from_url
+                                              aextract_form_from_url,
                                               )
 
 
@@ -40,12 +43,13 @@ def test_extract_name_value_pairs_syc():
     payload["password"] = "secret"
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "secret"
+    time.sleep(2)
 
 
 @pytest.mark.asyncio
 async def test_extract_name_value_pairs_async():
     LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
-    soup = await amake_soup(LOGIN_URL, headers=HEADERS, timeout=20)
+    soup = await amake_soup(LOGIN_URL, headers=HEADERS, timeout=120)
     form = soup.select_one('form[method="post"]')
     payload = extract_name_value_pairs(form, "input")
 
@@ -54,6 +58,8 @@ async def test_extract_name_value_pairs_async():
     payload["password"] = "secret"
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "secret"
+
+    await asyncio.sleep(2)
 
 
 HEADERS = {
@@ -73,7 +79,7 @@ def test_extract_form_from_url_with_timeout(backend):
         LOGIN_URL,
         headers=HEADERS,
         backend=backend,
-        timeout=10,  # timeout court pour le test
+        timeout=120,  # timeout court pour le test
     )
 
     # Vérifie que les champs cachés sont présents
@@ -87,6 +93,8 @@ def test_extract_form_from_url_with_timeout(backend):
     # Vérifie que les champs utilisateurs sont bien ajoutés
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "dummy123"
+
+    time.sleep(2)
 
 
 @pytest.mark.asyncio
@@ -97,7 +105,7 @@ async def test_aextract_form_from_url_with_timeout():
         LOGIN_URL,
         headers=HEADERS,
         backend="aiohttp",
-        timeout=10,  # timeout court pour le test
+        timeout=120,  # timeout court pour le test
     )
 
     # Vérifie que les champs cachés sont présents
@@ -111,3 +119,5 @@ async def test_aextract_form_from_url_with_timeout():
     # Vérifie que les champs utilisateurs sont bien ajoutés
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "dummy123"
+
+    await asyncio.sleep(2)
