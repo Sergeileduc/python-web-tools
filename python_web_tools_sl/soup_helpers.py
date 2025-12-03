@@ -29,7 +29,8 @@ def make_soup(
     parser: str = "html.parser",
     timeout: int = 3,
     ssl: bool = True,
-    backend: str = "requests"
+    backend: str = "requests",
+    headers=None,
 ) -> BeautifulSoup:
     """
     Télécharge le contenu HTML d'une URL en mode synchrone et retourne un objet BeautifulSoup.
@@ -46,6 +47,7 @@ def make_soup(
         backend (str, optional): Choix du backend HTTP.
             - "requests" (par défaut)
             - "requests_html" : exécute aussi le JavaScript (si installé).
+        headers (dict, optional): En-têtes HTTP supplémentaires à inclure dans la requête.
 
     Returns:
         BeautifulSoup: Objet représentant l'arbre DOM de la page.
@@ -60,10 +62,11 @@ def make_soup(
         'Example Domain'
     """  # noqa: E501
     if backend == "requests_html" and HAS_REQUESTS_HTML:
-        session = HTMLSession()  # type: ignore
-        resp = session.get(url, timeout=timeout, verify=ssl)
-        resp.html.render()  # type: ignore
-        return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
+        # HTMLSession doit être fermé explicitement → on utilise un contexte
+        with HTMLSession() as session:  # type: ignore
+            resp = session.get(url, timeout=timeout, verify=ssl, headers=headers)
+            resp.html.render()  # type: ignore
+            return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
     else:
         resp = requests.get(url, timeout=timeout, verify=ssl)
         resp.raise_for_status()
