@@ -10,6 +10,7 @@ import warnings
 
 from requests_html import AsyncHTMLSession
 from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 
 
 from bs4 import BeautifulSoup
@@ -130,6 +131,7 @@ async def amake_soup(
         - "aiohttp" : uses aiohttp.ClientSession
         - "requests_html" : uses AsyncHTMLSession (if installed)
         - "httpx" : uses httpx.AsyncClient
+        - "playwright" : uses playwright client (Chromium)
     headers : dict, optional
         Additional HTTP headers to include in the request.
     session : AsyncHTMLSession, aiohttp.ClientSession or httpx.AsyncClient, optional
@@ -177,6 +179,17 @@ async def amake_soup(
             resp = await session.get(url, headers=headers)
             resp.raise_for_status()
             return BeautifulSoup(resp.text, features=parser)
+
+    elif backend == "playwright":
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            if headers:
+                await page.set_extra_http_headers(headers)
+            await page.goto(url, timeout=timeout * 1000)
+            html = await page.content()
+            await browser.close()
+        return BeautifulSoup(html, "html.parser")
 
     else:  # aiohttp par défaut
         timeout_obj = aiohttp.ClientTimeout(total=timeout)
