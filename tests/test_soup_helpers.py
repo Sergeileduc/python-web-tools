@@ -1,4 +1,4 @@
-from time import sleep
+from python_tools_sl.decorators.pauses import with_pause
 import pytest
 from python_web_tools_sl.soup_helpers import make_soup, is_dynamic, choose_backend
 
@@ -11,6 +11,7 @@ HEADERS = {
 }
 
 
+@with_pause(2, message="pause après chaque test backend")
 @pytest.mark.parametrize("backend", ["requests", "playwright"])
 def test_make_soup_wikipedia(backend):
     url = "https://fr.wikipedia.org/wiki/Iron_Man"
@@ -18,36 +19,36 @@ def test_make_soup_wikipedia(backend):
     assert soup is not None
     assert "Iron Man" in soup.text
     assert len(soup.text) > 4000
-    sleep(2)
 
 
+@with_pause(2, message="pause après chaque test backend")
 @pytest.mark.parametrize("backend", ["requests", "playwright"])
 def test_make_soup_airbnb(backend):
     url = "https://www.airbnb.com/"
     soup = make_soup(url, backend=backend, headers=HEADERS, timeout=120)
     assert soup is not None
     assert soup.find("div") is not None
-    sleep(2)
 
 
+@with_pause(2, message="pause après chaque test backend")
 @pytest.mark.parametrize("backend", ["requests", "playwright"])
 def test_make_soup_dynamic_coinmarketcap(backend):
     url = "https://coinmarketcap.com/"
     soup = make_soup(url, backend=backend, headers=HEADERS, timeout=50)
     assert soup is not None
     assert len(soup.text) > 1000
-    sleep(2)
 
 
+@with_pause(2, message="pause après chaque test backend")
 @pytest.mark.parametrize("backend", ["requests", "playwright"])
 def test_make_soup_twitter(backend):
     url = "https://x.com/"
     soup = make_soup(url, backend=backend, headers=HEADERS, timeout=240)
     assert soup is not None
     assert len(soup.text) > 500
-    sleep(2)
 
 
+@with_pause(2, message="pause après chaque test backend")
 def test_is_dynamic_and_choose_backend():
     urls_expected = {
         "https://fr.wikipedia.org/wiki/Iron_Man": False,   # attendu: statique
@@ -66,4 +67,3 @@ def test_is_dynamic_and_choose_backend():
         soup = make_soup(url, backend=backend, timeout=120, headers=HEADERS)
         assert soup is not None
         assert len(soup.text) > 500
-    sleep(2)

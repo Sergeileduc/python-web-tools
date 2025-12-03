@@ -1,5 +1,4 @@
-import asyncio
-import time
+from python_tools_sl.decorators.pauses import with_pause, with_pause_async
 
 import pytest
 from python_web_tools_sl.soup_helpers import (make_soup, amake_soup,
@@ -29,6 +28,7 @@ HEADERS = {
 #     assert "generator" in tags
 #     assert "MediaWiki" in tags["generator"]
 
+@with_pause(2, message="ouais, pause de 2 secondes pour pas se faire timeout")
 def test_extract_name_value_pairs_syc():
     LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
     soup = make_soup(LOGIN_URL, headers=HEADERS, timeout=20)
@@ -43,10 +43,10 @@ def test_extract_name_value_pairs_syc():
     payload["password"] = "secret"
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "secret"
-    time.sleep(2)
 
 
 @pytest.mark.asyncio
+@with_pause_async(2, message="pause async de 2 secondes pour souffler")
 async def test_extract_name_value_pairs_async():
     LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
     soup = await amake_soup(LOGIN_URL, headers=HEADERS, timeout=120)
@@ -59,8 +59,6 @@ async def test_extract_name_value_pairs_async():
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "secret"
 
-    await asyncio.sleep(2)
-
 
 HEADERS = {
     "User-Agent": (
@@ -71,6 +69,7 @@ HEADERS = {
 }
 
 
+@with_pause(2, message="pause après chaque test backend")
 @pytest.mark.parametrize("backend", ["playwright", "requests"])
 def test_extract_form_from_url_with_timeout(backend):
     LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
@@ -94,10 +93,9 @@ def test_extract_form_from_url_with_timeout(backend):
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "dummy123"
 
-    time.sleep(2)
-
 
 @pytest.mark.asyncio
+@with_pause_async(2, message="pause async de 2 secondes pour souffler")
 async def test_aextract_form_from_url_with_timeout():
     LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
     # Appel async avec timeout explicite
@@ -119,5 +117,3 @@ async def test_aextract_form_from_url_with_timeout():
     # Vérifie que les champs utilisateurs sont bien ajoutés
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "dummy123"
-
-    await asyncio.sleep(2)
