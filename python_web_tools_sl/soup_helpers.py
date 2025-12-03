@@ -289,6 +289,59 @@ def is_dynamic(url: str, headers: dict | None = None, threshold_ratio: float = 1
     return ratio > threshold_ratio
 
 
+def choose_backend(url: str, headers: dict | None = None, threshold_ratio: float = 1.2) -> str:
+    """
+    Choisit automatiquement le backend à utiliser pour parser une page web.
+
+    La logique repose sur is_dynamic(url) :
+    - Si la page est dynamique → retourne "playwright".
+    - Si la page est statique → retourne "requests".
+
+    Paramètres
+    ----------
+    url : str
+        L'URL de la page à tester.
+    headers : dict | None
+        En-têtes HTTP optionnels (ex. User-Agent).
+    threshold_ratio : float
+        Ratio minimal de différence entre Playwright et Requests pour considérer la page comme dynamique.
+
+    Retour
+    ------
+    str
+        "requests" si la page est statique.
+        "playwright" si la page est dynamique.
+
+    Exemple d'utilisation
+    ---------------------
+    >>> headers = {
+    ...     "User-Agent": (
+    ...         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    ...         "AppleWebKit/537.36 (KHTML, like Gecko) "
+    ...         "Chrome/120.0 Safari/537.36"
+    ...     )
+    ... }
+    >>> url = "https://fr.wikipedia.org/wiki/Iron_Man"
+    >>> backend = choose_backend(url, headers=headers)
+    >>> soup = make_soup(url, backend=backend, headers=headers)
+    >>> print(len(soup.text))
+    4950
+
+    >>> url = "https://x.com/"
+    >>> backend = choose_backend(url, headers=headers)
+    >>> soup = make_soup(url, backend=backend, headers=headers)
+    >>> print(len(soup.text))
+    1129
+
+    Notes
+    -----
+    - Utilise `choose_backend` pour décider automatiquement du moteur avant d'appeler `make_soup`.
+    - Cela évite de coder deux fois la logique de détection (requests vs playwright).
+    - Tu peux l’intégrer dans une boucle sur une liste d’URLs pour traiter en masse.
+    """
+    return "playwright" if is_dynamic(url, headers=headers, threshold_ratio=threshold_ratio) else "requests"
+
+
 ######################################################################################
 # LEGACY
 ######################################################################################
@@ -470,13 +523,37 @@ if __name__ == "__main__":
     which_backend("https://fr.wikipedia.org/wiki/Iron_Man", headers=headers)
     which_backend("https://x.com/", headers=headers)
 
-    urls = [
-        "https://fr.wikipedia.org/wiki/Iron_Man",  # statique attendu
-        "http://quotes.toscrape.com/js/",          # dynamique attendu (JS-only)
-        "https://x.com/",                          # dynamique attendu
-    ]
+    # Liste d'URLs à tester
+    urls_expected = {
+        "https://fr.wikipedia.org/wiki/Iron_Man": False,   # attendu: statique
+        "http://quotes.toscrape.com/js/": True,            # attendu: dynamique
+        "https://x.com/": True                             # attendu: dynamique
+    }
 
-    for url in urls:
+    # Boucle de test
+    for url, expected in urls_expected.items():
         result = is_dynamic(url, headers=headers, threshold_ratio=1.2)
         verdict = "⚠️ Dynamique (Playwright)" if result else "✅ Statique (Requests)"
         print(f"{url} → {verdict}")
+        assert result == expected, f"Test échoué pour {url} (attendu {expected}, obtenu {result})"
+
+    print("\nTous les tests sont passés ✅")
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0 Safari/537.36"
+        )
+    }
+
+    urls = [
+        "https://fr.wikipedia.org/wiki/Iron_Man",
+        "http://quotes.toscrape.com/js/",
+        "https://x.com/",
+    ]
+
+    for url in urls:
+        backend = choose_backend(url, headers=headers)
+        soup = make_soup(url, backend=backend, headers=headers)
+        print(f"{url} → backend choisi: {backend}, longueur texte: {len(soup.text)}")
