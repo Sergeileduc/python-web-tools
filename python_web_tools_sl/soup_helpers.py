@@ -28,7 +28,7 @@ def make_soup(
     parser: str = "lxml",
     timeout: int = 3,
     ssl: bool = True,
-    backend: str = "requests_html",
+    backend: str = "requests",
     headers: dict | None = None,
     session=None,
 ) -> BeautifulSoup:
@@ -90,6 +90,7 @@ async def amake_soup(
     ssl: bool = False,
     backend: str = "aiohttp",
     headers: dict | None = None,
+    session=None,
 ) -> BeautifulSoup:
     """
     Fetch an HTML page asynchronously and return a BeautifulSoup object.
@@ -99,10 +100,8 @@ async def amake_soup(
     url : str
         The URL of the page to fetch.
     parser : str, optional
-        Parser used by BeautifulSoup.
-        - "html.parser" (par défaut)
-        - "lxml"
-        - "html5lib"
+        Parser used by BeautifulSoup. Default is "html.parser".
+        Options include "lxml" and "html5lib".
     timeout : int or float, optional
         Maximum request timeout in seconds. Default is 3.
     ssl : bool, optional
@@ -115,6 +114,8 @@ async def amake_soup(
         - "httpx" : uses httpx.AsyncClient
     headers : dict, optional
         Additional HTTP headers to include in the request.
+    session : AsyncHTMLSession, aiohttp.ClientSession or httpx.AsyncClient, optional
+        Existing async session to reuse. If None, a new one is created internally.
 
     Returns
     -------
@@ -134,23 +135,41 @@ async def amake_soup(
     >>> print(soup.title.string)
     'Example Domain'
     """
-    if backend == "requests_html" and HAS_REQUESTS_HTML:
-        session = AsyncHTMLSession()
-        resp = await session.get(url, timeout=timeout, verify=ssl, headers=headers)  # type: ignore
-        await resp.html.arender()
-        return BeautifulSoup(resp.html.html, features=parser)
+    if backend == "requests_html" and AsyncHTMLSession is not None:
+        if session is None:
+            session = AsyncHTMLSession()
+            # type: ignore
+            resp = await session.get(url, timeout=timeout, verify=ssl, headers=headers)
+            await resp.html.arender()
+            return BeautifulSoup(resp.html.html, features=parser)
+        else:
+            # type: ignore
+            resp = await session.get(url, timeout=timeout, verify=ssl, headers=headers)
+            await resp.html.arender()
+            return BeautifulSoup(resp.html.html, features=parser)
 
     elif backend == "httpx":
         import httpx
-        async with httpx.AsyncClient(timeout=timeout, verify=ssl, headers=headers) as client:
-            resp = await client.get(url)
+        if session is None:
+            async with httpx.AsyncClient(timeout=timeout, verify=ssl, headers=headers) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return BeautifulSoup(resp.text, features=parser)
+        else:
+            resp = await session.get(url, headers=headers)
             resp.raise_for_status()
             return BeautifulSoup(resp.text, features=parser)
 
-    else:  # aiohttp by default
+    else:  # aiohttp par défaut
         timeout_obj = aiohttp.ClientTimeout(total=timeout)
-        async with aiohttp.ClientSession(timeout=timeout_obj, headers=headers) as session:
-            async with session.get(url, ssl=ssl) as resp:
+        if session is None:
+            async with aiohttp.ClientSession(timeout=timeout_obj, headers=headers) as client:
+                async with client.get(url, ssl=ssl) as resp:
+                    resp.raise_for_status()
+                    text = await resp.text()
+                    return BeautifulSoup(text, features=parser)
+        else:
+            async with session.get(url, ssl=ssl, headers=headers) as resp:
                 resp.raise_for_status()
                 text = await resp.text()
                 return BeautifulSoup(text, features=parser)
@@ -275,3 +294,31 @@ async def get_soup_xml(url: str) -> BeautifulSoup:
     r = await asession.get(url, headers=headers, timeout=3)
     await asession.close()
     return BeautifulSoup(r.text, 'xml')
+
+
+if __name__ == "__main__":
+
+    DEFAULT_HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0 Safari/537.36"
+        )
+    }
+
+    # import asyncio
+    url = "https://fr.wikipedia.org/wiki/Iron_Man"
+
+    print("=== Test sync make_soup ===")
+    soup = make_soup(url, headers=DEFAULT_HEADERS)
+    # Exemple : récupérer le titre de la page
+    print("Titre (sync):", soup.find("h1").text)
+    print("Premier paragraphe:", soup.find("p").text)
+
+    # print("\n=== Test async amake_soup ===")
+
+    # async def main():
+    #     soup_async = await amake_soup(url, parser="lxml")
+    #     print("Titre (async):", soup_async.find("h1").text)
+
+    # asyncio.run(main())
