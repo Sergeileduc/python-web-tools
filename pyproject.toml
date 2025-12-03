@@ -1,3 +1,4 @@
+##### 📦 PROJECT #####
 [project]
 name = "python-web-tools-sl"
 version = "0.1.0"
@@ -23,6 +24,15 @@ dependencies = [
 requests_html = ["requests-html"]
 httpx = ["httpx"]
 
+
+##### 🔨 BUILD #####
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+##### 🛠 DEV TOOLS #####
+[tool.flake8]
+max-line-length = 100
+
+[tool.black]
+line-length = 100
