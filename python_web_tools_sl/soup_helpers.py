@@ -277,6 +277,46 @@ def extract_name_value_pairs(soup, selector: str, attr: str = "value") -> dict:
     }
 
 
+def extract_form(form) -> dict:
+    """Extrait les name:value d’un <form> déjà sélectionné."""
+    return {i["name"]: i["value"] for i in form.select("input") if i.has_attr("name") and i.has_attr("value")}
+
+
+def extract_form_from_url(url: str, headers=None, backend="requests") -> dict:
+    """Récupère l'URL, sélectionne le premier <form method="post"> et extrait ses champs."""
+    soup = make_soup(url, headers=headers, backend=backend)
+    form = soup.select_one('form[method="post"]')
+    return extract_form(form)
+
+
+async def aextract_form_from_url(
+    url: str,
+    headers=None,
+    backend="aiohttp"
+) -> dict:
+    """
+    Version asynchrone de extract_form_from_url.
+    Récupère l'URL, sélectionne le premier <form method="post"> et extrait ses champs.
+
+    Paramètres
+    ----------
+    url : str
+        URL de la page contenant le formulaire.
+    headers : dict, optionnel
+        En-têtes HTTP à passer à la requête.
+    backend : str, optionnel
+        Backend utilisé pour amake_soup (par défaut "aiohttp").
+
+    Retour
+    ------
+    dict
+        Dictionnaire {name:value} des champs du formulaire.
+    """
+    soup = await amake_soup(url, headers=headers, backend=backend)
+    form = soup.select_one('form[method="post"]')
+    return extract_form(form)
+
+
 def which_backend(url, headers=None, timeout_req=8, timeout_pw=20, threshold_ratio=1.2):
     """
     Compare la longueur du texte visible (soup.text) obtenu via make_soup
