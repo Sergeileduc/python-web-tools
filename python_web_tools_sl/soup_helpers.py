@@ -410,7 +410,13 @@ def which_backend(url, headers=None, timeout_req=8, timeout_pw=20, threshold_rat
         print("\033[92m✅ Statique → requests suffit\033[0m")
 
 
-def is_dynamic(url: str, headers: dict | None = None, threshold_ratio: float = 1.2) -> bool:
+def is_dynamic(
+    url: str,
+    headers: dict | None = None,
+    threshold_ratio: float = 1.2,
+    timeout_req: int = 30,
+    timeout_pw: int = 60,
+) -> bool:
     """
     Détecte si une page web est dynamique (nécessite Playwright) ou statique (requests suffit).
 
@@ -430,6 +436,10 @@ def is_dynamic(url: str, headers: dict | None = None, threshold_ratio: float = 1
         pour considérer la page comme dynamique.
         Exemple : 1.2 → si Playwright renvoie au moins 20 % de texte en plus,
         la page est dite dynamique.
+    timeout_req : int, optionnel
+        Timeout en secondes pour la requête requests (par défaut 30).
+    timeout_pw : int, optionnel
+        Timeout en secondes pour la requête Playwright (par défaut 60).
 
     Retour
     ------
@@ -444,8 +454,8 @@ def is_dynamic(url: str, headers: dict | None = None, threshold_ratio: float = 1
     >>> is_dynamic("https://x.com/")
     True
     """
-    soup_req = make_soup(url, backend="requests", headers=headers, timeout=10)
-    soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=20)
+    soup_req = make_soup(url, backend="requests", headers=headers, timeout=timeout_req)
+    soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=timeout_pw)
 
     len_req = len(soup_req.text)
     len_pw = len(soup_pw.text)
