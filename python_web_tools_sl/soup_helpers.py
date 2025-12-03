@@ -222,6 +222,73 @@ def select_tag(soup: BeautifulSoup, selector: str) -> dict:
     return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}  # noqa: E501
 
 
+def which_backend(url, headers=None, timeout_req=8, timeout_pw=20, threshold_ratio=1.2):
+    """
+    Compare la longueur du texte visible (soup.text) obtenu via make_soup
+    avec backend="requests" et backend="playwright".
+    """
+    # requests
+    soup_req = make_soup(url, backend="requests", headers=headers, timeout=timeout_req)
+    len_req_text = len(soup_req.text)
+    print("=== requests ===")
+    print(f"Longueur HTML (requests): {len_req_text}")
+
+    # playwright
+    soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=timeout_pw)
+    len_pw_text = len(soup_pw.text)
+    print("=== playwright ===")
+    print(f"Longueur HTML (playwright): {len_pw_text}")
+
+    # décision
+    ratio = (len_pw_text + 1) / (len_req_text + 1)
+    if ratio > threshold_ratio:
+        print("\033[93m⚠️ Dynamique → Playwright recommandé\033[0m")
+    else:
+        print("\033[92m✅ Statique → requests suffit\033[0m")
+
+
+def is_dynamic(url: str, headers: dict | None = None, threshold_ratio: float = 1.2) -> bool:
+    """
+    Détecte si une page web est dynamique (nécessite Playwright) ou statique (requests suffit).
+
+    La logique repose sur `make_soup` :
+    - On construit une BeautifulSoup avec backend="requests".
+    - On construit une BeautifulSoup avec backend="playwright".
+    - On compare la longueur du texte visible (`soup.text`) des deux résultats.
+
+    Paramètres
+    ----------
+    url : str
+        L'URL de la page à tester.
+    headers : dict | None
+        En-têtes HTTP optionnels (ex. User-Agent).
+    threshold_ratio : float
+        Ratio minimal de différence entre Playwright et Requests pour considérer la page comme dynamique.
+        Exemple : 1.2 → si Playwright renvoie au moins 20 % de texte en plus, la page est dite dynamique.
+
+    Retour
+    ------
+    bool
+        True si la page est dynamique (Playwright recommandé).
+        False si la page est statique (requests suffit).
+
+    Exemple
+    -------
+    >>> is_dynamic("https://fr.wikipedia.org/wiki/Iron_Man")
+    False
+    >>> is_dynamic("https://x.com/")
+    True
+    """
+    soup_req = make_soup(url, backend="requests", headers=headers, timeout=10)
+    soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=20)
+
+    len_req = len(soup_req.text)
+    len_pw = len(soup_pw.text)
+
+    ratio = (len_pw + 1) / (len_req + 1)
+    return ratio > threshold_ratio
+
+
 ######################################################################################
 # LEGACY
 ######################################################################################
@@ -353,7 +420,7 @@ if __name__ == "__main__":
         print("=== Test sync make_soup (playwright) ===")
         soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=15)
         print("Contenu rendu (playwright):", soup_pw.find("div"))
-    
+
     def test_make_soup_dynamic():
         url = "https://coinmarketcap.com/"
         print("=== requests ===")
@@ -387,3 +454,29 @@ if __name__ == "__main__":
     test_make_soup_airbnb()
     test_make_soup_dynamic()
     test_make_soup_twitter()
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0 Safari/537.36"
+    }
+
+    DEFAULT_UA = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+
+    which_backend("https://fr.wikipedia.org/wiki/Iron_Man", headers=headers)
+    which_backend("https://x.com/", headers=headers)
+
+    urls = [
+        "https://fr.wikipedia.org/wiki/Iron_Man",  # statique attendu
+        "http://quotes.toscrape.com/js/",          # dynamique attendu (JS-only)
+        "https://x.com/",                          # dynamique attendu
+    ]
+
+    for url in urls:
+        result = is_dynamic(url, headers=headers, threshold_ratio=1.2)
+        verdict = "⚠️ Dynamique (Playwright)" if result else "✅ Statique (Requests)"
+        print(f"{url} → {verdict}")
