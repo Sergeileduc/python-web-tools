@@ -66,61 +66,48 @@ HEADERS = {
 
 
 @pytest.mark.parametrize("backend", ["playwright", "requests"])
-def test_extract_form_and_add_credentials(backend):
+def test_extract_form_from_url_with_timeout(backend):
     LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
-    # Récupère la page et extrait le formulaire
-    soup = make_soup(LOGIN_URL, backend=backend, headers=HEADERS, timeout=50)
-    form = soup.select_one('form[method="post"]')
-    payload = extract_form(form)
+    # Appel avec timeout explicite
+    payload = extract_form_from_url(
+        LOGIN_URL,
+        headers=HEADERS,
+        backend=backend,
+        timeout=10,  # timeout court pour le test
+    )
 
     # Vérifie que les champs cachés sont présents
     assert "csrf" in payload
     assert "signin" in payload
 
-    # Ajoute les credentials (simulés)
-    email = "dummy@example.com"
-    password = "dummy123"
-
-    payload["email"] = email
-    payload["password"] = password
-
-    # Vérifie que les champs utilisateurs sont bien ajoutés
-    assert payload["email"] == email
-    assert payload["password"] == password
-
-
-@pytest.mark.parametrize("backend", ["playwright", "requests"])
-def test_extract_form_from_url_and_add_credentials(backend):
-    LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
-    # Récupère directement le payload via le wrapper
-    payload = extract_form_from_url(LOGIN_URL, headers=HEADERS, backend=backend)
-
-    # Vérifie que les champs cachés sont présents
-    assert "csrf" in payload
-    assert "signin" in payload
-
-    # Ajoute les credentials (simulés)
-    email = "dummy@example.com"
-    password = "dummy123"
-
-    payload["email"] = email
-    payload["password"] = password
-
-    # Vérifie que les champs utilisateurs sont bien ajoutés
-    assert payload["email"] == email
-    assert payload["password"] == password
-
-
-@pytest.mark.asyncio
-async def test_aextract_form_from_url_and_add_credentials():
-    LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
-    payload = await aextract_form_from_url(LOGIN_URL, headers=HEADERS, backend="aiohttp")
-
-    assert "csrf" in payload
-    assert "signin" in payload
-
+    # Ajoute les credentials simulés
     payload["email"] = "dummy@example.com"
     payload["password"] = "dummy123"
 
+    # Vérifie que les champs utilisateurs sont bien ajoutés
+    assert payload["email"] == "dummy@example.com"
+    assert payload["password"] == "dummy123"
+
+
+@pytest.mark.asyncio
+async def test_aextract_form_from_url_with_timeout():
+    LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
+    # Appel async avec timeout explicite
+    payload = await aextract_form_from_url(
+        LOGIN_URL,
+        headers=HEADERS,
+        backend="aiohttp",
+        timeout=10,  # timeout court pour le test
+    )
+
+    # Vérifie que les champs cachés sont présents
+    assert "csrf" in payload
+    assert "signin" in payload
+
+    # Ajoute les credentials simulés
+    payload["email"] = "dummy@example.com"
+    payload["password"] = "dummy123"
+
+    # Vérifie que les champs utilisateurs sont bien ajoutés
     assert payload["email"] == "dummy@example.com"
     assert payload["password"] == "dummy123"
