@@ -14,9 +14,8 @@ from discord.utils import find as disc_find
 
 try:
     from requests_html import HTMLSession
-    HAS_REQUESTS_HTML = True
 except ImportError:
-    HAS_REQUESTS_HTML = False
+    HTMLSession = None  # type: ignore
 
 
 logger = logging.getLogger(__name__)
@@ -26,51 +25,62 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleW
 
 def make_soup(
     url: str,
-    parser: str = "html.parser",
+    parser: str = "lxml",
     timeout: int = 3,
     ssl: bool = True,
-    backend: str = "requests",
-    headers=None,
+    backend: str = "requests_html",
+    headers: dict | None = None,
+    session=None,
 ) -> BeautifulSoup:
     """
-    Télécharge le contenu HTML d'une URL en mode synchrone et retourne un objet BeautifulSoup.
+    Fetch an HTML page and return a BeautifulSoup object.
 
-    Args:
-        url (str): L'URL de la page à récupérer.
-        parser (str, optional): Parser utilisé pour analyser le HTML.
-            - "html.parser" (par défaut) : parser intégré à Python, rapide et sans dépendance externe.
-            - "lxml" : nécessite l'installation de lxml, plus rapide et robuste.
-            - "html5lib" : parser fidèle au standard HTML5.
-        timeout (int, optional): Timeout en secondes pour la requête (par défaut 3).
-        ssl (bool, optional): Active/désactive la vérification SSL (par défaut True).
-            ⚠️ Avec requests, `ssl=False` équivaut à `verify=False`.
-        backend (str, optional): Choix du backend HTTP.
-            - "requests" (par défaut)
-            - "requests_html" : exécute aussi le JavaScript (si installé).
-        headers (dict, optional): En-têtes HTTP supplémentaires à inclure dans la requête.
+    Parameters
+    ----------
+    url : str
+        The URL of the page to fetch.
+    parser : str, optional
+        Parser used by BeautifulSoup. Default is "lxml".
+    timeout : int or float, optional
+        Maximum request timeout in seconds. Default is 3.
+    ssl : bool, optional
+        Whether to verify SSL certificates. Default is True.
+    backend : str, optional
+        Backend to use. "requests_html" if available, otherwise "requests".
+    headers : dict, optional
+        Additional HTTP headers to include in the request.
+    session : requests.Session or HTMLSession, optional
+        Existing session to reuse. If None, a new one is created internally.
 
-    Returns:
-        BeautifulSoup: Objet représentant l'arbre DOM de la page.
-
-    Raises:
-        requests.exceptions.RequestException: Si la requête échoue (connexion, timeout, etc.).
-        requests.exceptions.HTTPError: Si le serveur retourne un code d'erreur HTTP.
-
-    Example:
-        >>> soup = make_soup("https://example.com")
-        >>> print(soup.title.string)
-        'Example Domain'
-    """  # noqa: E501
-    if backend == "requests_html" and HAS_REQUESTS_HTML:
-        # HTMLSession doit être fermé explicitement → on utilise un contexte
-        with HTMLSession() as session:  # type: ignore
+    Returns
+    -------
+    BeautifulSoup
+        Parsed HTML content of the page.
+    """
+    if backend == "requests_html" and HTMLSession is not None:
+        if session is None:
+            # crée et ferme automatiquement la session
+            with HTMLSession() as s:
+                resp = s.get(url, timeout=timeout, verify=ssl, headers=headers)
+                resp.html.render()  # type: ignore
+                return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
+        else:
+            # utilise la session fournie, sans la fermer
             resp = session.get(url, timeout=timeout, verify=ssl, headers=headers)
-            resp.html.render()  # type: ignore
-            return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
+            resp.html.render()
+            return BeautifulSoup(resp.html.html, features=parser)
+
     else:
-        resp = requests.get(url, timeout=timeout, verify=ssl)
-        resp.raise_for_status()
-        return BeautifulSoup(resp.text, features=parser)
+        if session is None:
+            # requête jetable avec requests
+            resp = requests.get(url, timeout=timeout, verify=ssl, headers=headers)
+            resp.raise_for_status()
+            return BeautifulSoup(resp.text, features=parser)
+        else:
+            # utilise la session fournie
+            resp = session.get(url, timeout=timeout, verify=ssl, headers=headers)
+            resp.raise_for_status()
+            return BeautifulSoup(resp.text, features=parser)
 
 
 async def amake_soup(
