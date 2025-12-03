@@ -1,9 +1,11 @@
 import asyncio
 import pytest
 from python_web_tools_sl.soup_helpers import amake_soup
+from python_tools_sl.decorators.pauses import with_pause_async
 
 
 @pytest.mark.asyncio
+@with_pause_async(2, message="pause async de 2 secondes pour souffler")
 async def test_quotes_aiohttp():
     url = "http://quotes.toscrape.com/"
     soup = await amake_soup(url, backend="aiohttp", timeout=10)
@@ -14,20 +16,20 @@ async def test_quotes_aiohttp():
     assert "Quotes" in soup.text
     # Vérifie que la longueur du texte est cohérente
     assert len(soup.text) > 1000
-    await asyncio.sleep(2)
 
 
 @pytest.mark.asyncio
+@with_pause_async(2, message="pause async de 2 secondes pour souffler")
 async def test_quotes_playwright():
     url = "http://quotes.toscrape.com/js/"
     soup = await amake_soup(url, backend="playwright", timeout=20)
     assert soup is not None
     assert "Quotes" in soup.text
     assert len(soup.text) > 1000
-    await asyncio.sleep(2)
 
 
 @pytest.mark.asyncio
+@with_pause_async(2, message="pause async de 2 secondes pour souffler")
 async def test_wikipedia_playwright():
     url = "https://fr.wikipedia.org/wiki/Iron_Man"
     headers = {
@@ -45,4 +47,3 @@ async def test_wikipedia_playwright():
     assert "Iron Man" in soup.text
     # Vérifie que la longueur du texte est cohérente
     assert len(soup.text) > 4000
-    await asyncio.sleep(2)
