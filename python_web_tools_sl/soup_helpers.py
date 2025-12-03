@@ -78,53 +78,68 @@ async def amake_soup(
     parser: str = "html.parser",
     timeout: int = 3,
     ssl: bool = False,
-    backend: str = "aiohttp"
+    backend: str = "aiohttp",
+    headers: dict | None = None,
 ) -> BeautifulSoup:
     """
-    Télécharge le contenu HTML d'une URL en mode asynchrone et retourne un objet BeautifulSoup.
+    Fetch an HTML page asynchronously and return a BeautifulSoup object.
 
-    Args:
-        url (str): L'URL de la page à récupérer.
-        parser (str, optional): Parser utilisé pour analyser le HTML.
-            - "html.parser" (par défaut)
-            - "lxml"
-            - "html5lib"
-        timeout (int, optional): Timeout en secondes pour la requête (par défaut 3).
-        ssl (bool, optional): Active/désactive la vérification SSL (par défaut False).
-            ⚠️ Avec aiohttp, `ssl=False` désactive la vérification des certificats.
-        backend (str, optional): Choix du backend HTTP.
-            - "aiohttp" (par défaut)
-            - "requests_html" : utilise AsyncHTMLSession (si installé).
-            - "httpx" : possible extension future.
+    Parameters
+    ----------
+    url : str
+        The URL of the page to fetch.
+    parser : str, optional
+        Parser used by BeautifulSoup.
+        - "html.parser" (par défaut)
+        - "lxml"
+        - "html5lib"
+    timeout : int or float, optional
+        Maximum request timeout in seconds. Default is 3.
+    ssl : bool, optional
+        Whether to verify SSL certificates. Default is False.
+        ⚠️ With aiohttp, `ssl=False` disables certificate verification.
+    backend : str, optional
+        HTTP backend to use. Default is "aiohttp".
+        - "aiohttp" : uses aiohttp.ClientSession
+        - "requests_html" : uses AsyncHTMLSession (if installed)
+        - "httpx" : uses httpx.AsyncClient
+    headers : dict, optional
+        Additional HTTP headers to include in the request.
 
-    Returns:
-        BeautifulSoup: Objet représentant l'arbre DOM de la page.
+    Returns
+    -------
+    BeautifulSoup
+        Parsed HTML content of the page.
 
-    Raises:
-        aiohttp.ClientError: Si la requête échoue (connexion, timeout, etc.).
-        aiohttp.ClientResponseError: Si le serveur retourne un code d'erreur HTTP.
+    Raises
+    ------
+    aiohttp.ClientError
+        If the request fails (connection, timeout, etc.).
+    aiohttp.ClientResponseError
+        If the server returns an HTTP error status.
 
-    Example:
-        >>> soup = await amake_soup("https://example.com")
-        >>> print(soup.title.string)
-        'Example Domain'
-    """  # noqa: E501
+    Examples
+    --------
+    >>> soup = await amake_soup("https://example.com")
+    >>> print(soup.title.string)
+    'Example Domain'
+    """
     if backend == "requests_html" and HAS_REQUESTS_HTML:
         session = AsyncHTMLSession()
-        resp = await session.get(url, timeout=timeout, verify=ssl)  # type: ignore
+        resp = await session.get(url, timeout=timeout, verify=ssl, headers=headers)  # type: ignore
         await resp.html.arender()
         return BeautifulSoup(resp.html.html, features=parser)
 
     elif backend == "httpx":
         import httpx
-        async with httpx.AsyncClient(timeout=timeout, verify=ssl) as client:
+        async with httpx.AsyncClient(timeout=timeout, verify=ssl, headers=headers) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return BeautifulSoup(resp.text, features=parser)
 
-    else:  # aiohttp par défaut
+    else:  # aiohttp by default
         timeout_obj = aiohttp.ClientTimeout(total=timeout)
-        async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+        async with aiohttp.ClientSession(timeout=timeout_obj, headers=headers) as session:
             async with session.get(url, ssl=ssl) as resp:
                 resp.raise_for_status()
                 text = await resp.text()
