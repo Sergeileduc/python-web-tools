@@ -297,6 +297,7 @@ def extract_form(form) -> dict:
     - Cette fonction est volontairement minimale : elle ne fait que du parsing.
     - Elle récupère aussi les champs cachés (ex. csrf, SID, TOKEN_HOUR).
     - Tu complètes ensuite manuellement avec email/password avant de poster.
+    - Pas de paramètre timeout ici, car elle ne fait pas de requête HTTP.
     """
     return {
         i["name"]: i["value"]
@@ -305,7 +306,13 @@ def extract_form(form) -> dict:
     }
 
 
-def extract_form_from_url(url: str, headers=None, backend="requests", session=None) -> dict:
+def extract_form_from_url(
+    url: str,
+    headers=None,
+    backend="requests",
+    session=None,
+    timeout: int = 30,
+) -> dict:
     """
     Récupère une page de login, sélectionne le premier <form method="post"> et extrait ses champs.
 
@@ -319,6 +326,8 @@ def extract_form_from_url(url: str, headers=None, backend="requests", session=No
         Backend utilisé par make_soup ("requests", "playwright", etc.).
     session : object, optionnel
         Session HTTP (ex. requests.Session) pour conserver cookies et tokens.
+    timeout : int, optionnel
+        Délai maximum en secondes pour la requête GET (par défaut 30).
 
     Retour
     ------
@@ -331,12 +340,18 @@ def extract_form_from_url(url: str, headers=None, backend="requests", session=No
     - Si une session est fournie, elle est utilisée pour la requête GET.
     - Tu peux ensuite réutiliser la même session pour le POST de login.
     """
-    soup = make_soup(url, headers=headers, backend=backend, session=session)
+    soup = make_soup(url, headers=headers, backend=backend, session=session, timeout=timeout)
     form = soup.select_one('form[method="post"]')
     return extract_form(form)
 
 
-async def aextract_form_from_url(url: str, headers=None, backend="aiohttp", session=None) -> dict:
+async def aextract_form_from_url(
+    url: str,
+    headers=None,
+    backend="aiohttp",
+    session=None,
+    timeout: int = 30,
+) -> dict:
     """
     Version asynchrone de extract_form_from_url.
     Récupère une page de login, sélectionne le premier <form method="post"> et extrait ses champs.
@@ -351,6 +366,8 @@ async def aextract_form_from_url(url: str, headers=None, backend="aiohttp", sess
         Backend utilisé par amake_soup ("aiohttp", "playwright", etc.).
     session : object, optionnel
         Session HTTP (ex. aiohttp.ClientSession) pour conserver cookies et tokens.
+    timeout : int, optionnel
+        Délai maximum en secondes pour la requête GET (par défaut 30).
 
     Retour
     ------
@@ -363,7 +380,7 @@ async def aextract_form_from_url(url: str, headers=None, backend="aiohttp", sess
     - Si une session est fournie, elle est utilisée pour la requête GET.
     - Tu peux ensuite réutiliser la même session pour le POST de login.
     """
-    soup = await amake_soup(url, headers=headers, backend=backend, session=session)
+    soup = await amake_soup(url, headers=headers, backend=backend, session=session, timeout=timeout)
     form = soup.select_one('form[method="post"]')
     return extract_form(form)
 
