@@ -1,5 +1,6 @@
 """File for some tools."""
 
+import asyncio
 import aiohttp
 import requests
 import logging
@@ -8,6 +9,8 @@ import warnings
 
 
 from requests_html import AsyncHTMLSession
+from playwright.sync_api import sync_playwright
+
 
 from bs4 import BeautifulSoup
 from discord.utils import find as disc_find
@@ -25,7 +28,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleW
 
 def make_soup(
     url: str,
-    parser: str = "lxml",
+    parser: str = "html.parser",
     timeout: int = 3,
     ssl: bool = True,
     backend: str = "requests",
@@ -40,13 +43,19 @@ def make_soup(
     url : str
         The URL of the page to fetch.
     parser : str, optional
-        Parser used by BeautifulSoup. Default is "lxml".
+        Parser used by BeautifulSoup. Default is "html.parser".
+        lxml is faster and recommanded.
     timeout : int or float, optional
         Maximum request timeout in seconds. Default is 3.
     ssl : bool, optional
         Whether to verify SSL certificates. Default is True.
     backend : str, optional
-        Backend to use. "requests_html" if available, otherwise "requests".
+        Backend to use. default "requests".
+        - "requests" (par défaut) : HTML statique avec requests.
+        - "requests_html" : HTMLSession + Pyppeteer (⚠ fragile, dépend de Chromium).
+        - "playwright" : Playwright en mode synchrone (Chromium headless),
+                         fiable pour exécuter du JavaScript.
+
     headers : dict, optional
         Additional HTTP headers to include in the request.
     session : requests.Session or HTMLSession, optional
@@ -69,6 +78,15 @@ def make_soup(
             resp = session.get(url, timeout=timeout, verify=ssl, headers=headers)
             resp.html.render()
             return BeautifulSoup(resp.html.html, features=parser)
+
+    elif backend == "playwright":
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(url, timeout=timeout * 1000)
+            html = page.content()
+            browser.close()
+            return BeautifulSoup(html, features=parser)
 
     else:
         if session is None:
@@ -298,27 +316,74 @@ async def get_soup_xml(url: str) -> BeautifulSoup:
 
 if __name__ == "__main__":
 
-    DEFAULT_HEADERS = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0 Safari/537.36"
-        )
-    }
+    def test_make_soup_ironman():
+        url = "https://fr.wikipedia.org/wiki/Iron_Man"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0 Safari/537.36"
+            )
+        }
 
-    # import asyncio
-    url = "https://fr.wikipedia.org/wiki/Iron_Man"
+        print("=== Test sync make_soup (requests) ===")
+        soup = make_soup(url, backend="requests", headers=headers)
+        print("Titre:", soup.find("h1").text)
+        print("Premier paragraphe:", soup.find("p").text)
 
-    print("=== Test sync make_soup ===")
-    soup = make_soup(url, headers=DEFAULT_HEADERS)
-    # Exemple : récupérer le titre de la page
-    print("Titre (sync):", soup.find("h1").text)
-    print("Premier paragraphe:", soup.find("p").text)
+        print("=== Test sync make_soup (playwright) ===")
+        soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=15000)
+        print("Titre (playwright):", soup_pw.find("h1").text)
+        print("Premier paragraphe (playwright):", soup_pw.find("p").text)
 
-    # print("\n=== Test async amake_soup ===")
+    def test_make_soup_airbnb():
+        url = "https://www.airbnb.com/"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0 Safari/537.36"
+            )
+        }
 
-    # async def main():
-    #     soup_async = await amake_soup(url, parser="lxml")
-    #     print("Titre (async):", soup_async.find("h1").text)
+        print("=== Test sync make_soup (requests) ===")
+        soup = make_soup(url, backend="requests", headers=headers, timeout=10)
+        print("Contenu brut (requests):", soup.find("div"))
 
-    # asyncio.run(main())
+        print("=== Test sync make_soup (playwright) ===")
+        soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=15)
+        print("Contenu rendu (playwright):", soup_pw.find("div"))
+    
+    def test_make_soup_dynamic():
+        url = "https://coinmarketcap.com/"
+        print("=== requests ===")
+        soup_req = make_soup(url, backend="requests", timeout=10)
+        print("Longueur HTML (requests):", len(soup_req.text))
+
+        print("=== playwright ===")
+        soup_pw = make_soup(url, backend="playwright", timeout=20)
+        print("Longueur HTML (playwright):", len(soup_pw.text))
+
+    def test_make_soup_twitter():
+        print("----------TEST TWITTER-------------")
+        url = "https://x.com/"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0 Safari/537.36"
+            )
+        }
+
+        print("=== requests ===")
+        soup_req = make_soup(url, backend="requests", headers=headers, timeout=10)
+        print("Longueur HTML (requests):", len(soup_req.text))
+
+        print("\n=== playwright ===")
+        soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=20)
+        print("Longueur HTML (playwright):", len(soup_pw.text))
+
+    test_make_soup_ironman()
+    test_make_soup_airbnb()
+    test_make_soup_dynamic()
+    test_make_soup_twitter()
