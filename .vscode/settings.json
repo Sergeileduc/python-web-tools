@@ -1,0 +1,12 @@
+{
+    "conventionalCommits.scopes": [
+        "make_soup",
+        "amake_soup",
+        "invoke"
+    ],
+    "python.testing.pytestArgs": [
+        "python_web_tools_sl"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}
