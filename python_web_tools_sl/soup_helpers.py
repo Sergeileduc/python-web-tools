@@ -276,8 +276,10 @@ def is_dynamic(url: str, headers: dict | None = None, threshold_ratio: float = 1
     headers : dict | None
         En-têtes HTTP optionnels (ex. User-Agent).
     threshold_ratio : float
-        Ratio minimal de différence entre Playwright et Requests pour considérer la page comme dynamique.
-        Exemple : 1.2 → si Playwright renvoie au moins 20 % de texte en plus, la page est dite dynamique.
+        Ratio minimal de différence entre Playwright et Requests
+        pour considérer la page comme dynamique.
+        Exemple : 1.2 → si Playwright renvoie au moins 20 % de texte en plus,
+        la page est dite dynamique.
 
     Retour
     ------
@@ -317,7 +319,8 @@ def choose_backend(url: str, headers: dict | None = None, threshold_ratio: float
     headers : dict | None
         En-têtes HTTP optionnels (ex. User-Agent).
     threshold_ratio : float
-        Ratio minimal de différence entre Playwright et Requests pour considérer la page comme dynamique.
+        Ratio minimal de différence entre Playwright et Requests
+        pour considérer la page comme dynamique.
 
     Retour
     ------
@@ -352,7 +355,9 @@ def choose_backend(url: str, headers: dict | None = None, threshold_ratio: float
     - Cela évite de coder deux fois la logique de détection (requests vs playwright).
     - Tu peux l’intégrer dans une boucle sur une liste d’URLs pour traiter en masse.
     """
-    return "playwright" if is_dynamic(url, headers=headers, threshold_ratio=threshold_ratio) else "requests"
+    return "playwright" if is_dynamic(url,
+                                      headers=headers,
+                                      threshold_ratio=threshold_ratio) else "requests"
 
 
 ######################################################################################
