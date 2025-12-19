@@ -8,5 +8,34 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#cb94d4",
+        "activityBar.background": "#cb94d4",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#f6f4e8",
+        "activityBarBadge.foreground": "#15202b",
+        "commandCenter.border": "#15202b99",
+        "editorGroup.border": "#cb94d4",
+        "panel.border": "#cb94d4",
+        "sash.hoverBorder": "#cb94d4",
+        "sideBar.border": "#cb94d4",
+        "statusBar.background": "#b96fc6",
+        "statusBar.border": "#b96fc6",
+        "statusBar.debuggingBackground": "#7cc66f",
+        "statusBar.debuggingBorder": "#7cc66f",
+        "statusBar.debuggingForeground": "#15202b",
+        "statusBar.foreground": "#15202b",
+        "statusBarItem.hoverBackground": "#a74ab8",
+        "statusBarItem.remoteBackground": "#b96fc6",
+        "statusBarItem.remoteForeground": "#15202b",
+        "tab.activeBorder": "#cb94d4",
+        "titleBar.activeBackground": "#b96fc6",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.border": "#b96fc6",
+        "titleBar.inactiveBackground": "#b96fc699",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.color": "#b96fc6"
 }
