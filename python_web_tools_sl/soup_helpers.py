@@ -4,22 +4,25 @@ import asyncio
 import aiohttp
 import requests
 import logging
-from typing import Optional  # noqa
+from typing import Any, Optional, List, Tuple, Union, TYPE_CHECKING
 import warnings
 
-
-from requests_html import AsyncHTMLSession
+from requests_html import AsyncHTMLSession, HTMLResponse
 from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright
 
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from discord.utils import find as disc_find
 
-try:
+if TYPE_CHECKING:
+    from requests import Timeout
     from requests_html import HTMLSession
-except ImportError:
-    HTMLSession = None  # type: ignore
+else:
+    try:
+        from requests_html import HTMLSession
+    except ImportError:
+        HTMLSession = None
 
 
 logger = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ def make_soup(
     ssl: bool = True,
     backend: str = "requests",
     headers: dict | None = None,
-    session=None,
+    session: requests.Session | HTMLSession | None = None,
 ) -> BeautifulSoup:
     """
     Fetch an HTML page and return a BeautifulSoup object.
@@ -77,14 +80,14 @@ def make_soup(
         else:
             # utilise la session fournie, sans la fermer
             resp = session.get(url, timeout=timeout, verify=ssl, headers=headers)
-            resp.html.render()
-            return BeautifulSoup(resp.html.html, features=parser)
+            resp.html.render()  # type: ignore
+            return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
 
     elif backend == "playwright":
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            page.goto(url, timeout=timeout * 1000)
+            page.goto(url, timeout=(timeout or 0) * 1000)
             html = page.content()
             browser.close()
             return BeautifulSoup(html, features=parser)
@@ -103,13 +106,13 @@ def make_soup(
 
 
 async def amake_soup(
-    url: str,
+    url: str, *,
     parser: str = "html.parser",
     timeout: int = 3,
     ssl: bool = False,
     backend: str = "aiohttp",
     headers: dict | None = None,
-    session=None,
+    session: aiohttp.ClientSession | AsyncHTMLSession | HTMLSession | None = None,
 ) -> BeautifulSoup:
     """
     Fetch an HTML page asynchronously and return a BeautifulSoup object.
@@ -159,14 +162,15 @@ async def amake_soup(
         if session is None:
             session = AsyncHTMLSession()
             # type: ignore
-            resp = await session.get(url, timeout=timeout, verify=ssl, headers=headers)
-            await resp.html.arender()
+            resp: Any = await session.get(url, timeout=timeout,
+                                          verify=ssl, headers=headers)  # type: ignore
+            await resp.html.arender()  # ignore: type
             return BeautifulSoup(resp.html.html, features=parser)
         else:
-            # type: ignore
-            resp = await session.get(url, timeout=timeout, verify=ssl, headers=headers)
-            await resp.html.arender()
-            return BeautifulSoup(resp.html.html, features=parser)
+            resp = await session.get(url, timeout=timeout,
+                                     verify=ssl, headers=headers)  # type: ignore
+            await resp.html.arender()  # type: ignore
+            return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
 
     elif backend == "httpx":
         import httpx
@@ -176,9 +180,9 @@ async def amake_soup(
                 resp.raise_for_status()
                 return BeautifulSoup(resp.text, features=parser)
         else:
-            resp = await session.get(url, headers=headers)
+            resp = await session.get(url, headers=headers)  # type: ignore
             resp.raise_for_status()
-            return BeautifulSoup(resp.text, features=parser)
+            return BeautifulSoup(resp.text, features=parser)  # type: ignore
 
     elif backend == "playwright":
         async with async_playwright() as p:
@@ -186,7 +190,7 @@ async def amake_soup(
             page = await browser.new_page()
             if headers:
                 await page.set_extra_http_headers(headers)
-            await page.goto(url, timeout=timeout * 1000)
+            await page.goto(url, timeout=(timeout or 0) * 1000)
             html = await page.content()
             await browser.close()
         return BeautifulSoup(html, "html.parser")
@@ -229,7 +233,7 @@ def soup_from_text(text: str, parser: str = "html.parser") -> BeautifulSoup:
     return BeautifulSoup(text, features=parser)
 
 
-def extract_name_value_pairs(soup, selector: str, attr: str = "value") -> dict:
+def extract_name_value_pairs(soup: BeautifulSoup, selector: str, attr: str = "value") -> dict:
     """
     Extrait les paires (name:attr) des balises HTML sélectionnées.
 
@@ -277,27 +281,28 @@ def extract_name_value_pairs(soup, selector: str, attr: str = "value") -> dict:
     }
 
 
-def extract_form(form) -> dict:
+def extract_form(form: Tag) -> dict:
     """
-    Extrait les paires (name:value) des balises <input> dans un formulaire HTML.
+    Extracts (name:value) pairs from <input> tags in an HTML form.
 
-    Paramètres
-    ----------
-    form : bs4.element.Tag
-        Un objet BeautifulSoup représentant un <form> déjà sélectionné.
+    Args:
+        url (str): URL of the page containing the form.
+        headers (dict | None, optional): HTTP headers to include in the request.
+        backend (str, optional): Backend used by `make_soup` ("requests", "playwright", etc.).
+        session (requests.Session | HTMLSession | None, optional):
+            HTTP session (e.g., requests.Session) to preserve cookies and tokens.
+        timeout (int, optional): Maximum timeout in seconds for the GET request (default 30).
 
-    Retour
-    ------
-    dict
-        Dictionnaire {name:value} pour toutes les balises <input> qui possèdent
-        à la fois un attribut "name" et un attribut "value".
+    Returns:
+        dict[str, str]: Dictionary {name: value} extracted from the form fields.
 
-    Notes
-    -----
-    - Cette fonction est volontairement minimale : elle ne fait que du parsing.
-    - Elle récupère aussi les champs cachés (ex. csrf, SID, TOKEN_HOUR).
-    - Tu complètes ensuite manuellement avec email/password avant de poster.
-    - Pas de paramètre timeout ici, car elle ne fait pas de requête HTTP.
+    Raises:
+        ValueError: If no `<form method="post">` is found in the page.
+
+    Notes:
+        - Uses `make_soup` to fetch and parse the page.
+        - If a session is provided, it is used for the GET request.
+        - The same session can be reused for the login POST request.
     """
     return {
         i["name"]: i["value"]
@@ -308,84 +313,82 @@ def extract_form(form) -> dict:
 
 def extract_form_from_url(
     url: str,
-    headers=None,
-    backend="requests",
-    session=None,
+    headers: dict | None = None,
+    backend: str = "requests",
+    session: requests.Session | HTMLSession | None = None,
     timeout: int = 30,
-) -> dict:
+) -> dict[str, str]:
     """
-    Récupère une page de login, sélectionne le premier <form method="post"> et extrait ses champs.
+    Fetches a page and extracts(name: value) pairs from form[method="post"]
 
-    Paramètres
-    ----------
-    url : str
-        URL de la page contenant le formulaire.
-    headers : dict, optionnel
-        En-têtes HTTP à passer à la requête.
-    backend : str, optionnel
-        Backend utilisé par make_soup ("requests", "playwright", etc.).
-    session : object, optionnel
-        Session HTTP (ex. requests.Session) pour conserver cookies et tokens.
-    timeout : int, optionnel
-        Délai maximum en secondes pour la requête GET (par défaut 30).
+    Args:
+        url(str): URL of the page containing the form.
+        headers(dict | None, optional): HTTP headers to include in the request.
+        backend(str, optional): Backend used by `make_soup` ("requests", "playwright", etc.).
+        session(requests.Session | HTMLSession | None, optional):
+            HTTP session(e.g., requests.Session) to preserve cookies and tokens.
+        timeout(int, optional): Maximum timeout in seconds for the GET request(default 30).
 
-    Retour
-    ------
-    dict
-        Dictionnaire {name:value} des champs du formulaire.
+    Returns:
+        dict[str, str]: Dictionary {name: value} extracted from the form fields.
 
-    Notes
-    -----
-    - Utilise make_soup pour récupérer et parser la page.
-    - Si une session est fournie, elle est utilisée pour la requête GET.
-    - Tu peux ensuite réutiliser la même session pour le POST de login.
+    Raises:
+        ValueError: If no ` < form method = "post" > ` is found in the page.
+
+    Notes:
+        - Uses `make_soup` to fetch and parse the page.
+        - If a session is provided, it is used for the GET request.
+        - The same session can be reused for the login POST request.
     """
+
     soup = make_soup(url, headers=headers, backend=backend, session=session, timeout=timeout)
     form = soup.select_one('form[method="post"]')
+    if form is None:
+        raise ValueError("No <form method='post'> found in the page")
     return extract_form(form)
 
 
 async def aextract_form_from_url(
-    url: str,
-    headers=None,
-    backend="aiohttp",
-    session=None,
+    url: str, *,
+    headers: dict | None = None,
+    backend: str = "aiohttp",
+    session: aiohttp.ClientSession | AsyncHTMLSession | HTMLSession | None = None,
     timeout: int = 30,
 ) -> dict:
     """
-    Version asynchrone de extract_form_from_url.
-    Récupère une page de login, sélectionne le premier <form method="post"> et extrait ses champs.
+    Asynchronous version of extract_form_from_url. Fetches a login page, selects the first
+    <form method="post"> and extracts its fields.
 
-    Paramètres
-    ----------
-    url : str
-        URL de la page contenant le formulaire.
-    headers : dict, optionnel
-        En-têtes HTTP à passer à la requête.
-    backend : str, optionnel
-        Backend utilisé par amake_soup ("aiohttp", "playwright", etc.).
-    session : object, optionnel
-        Session HTTP (ex. aiohttp.ClientSession) pour conserver cookies et tokens.
-    timeout : int, optionnel
-        Délai maximum en secondes pour la requête GET (par défaut 30).
+    Args:
+        url (str): URL of the page containing the form.
+        headers (dict | None, optional): HTTP headers to include in the request.
+        backend (str, optional): Backend used by `amake_soup` ("aiohttp", "playwright", etc.).
+        session (requests.Session | HTMLSession | None, optional):
+            HTTP session (e.g., aiohttp.ClientSession) to preserve cookies and tokens.
+        timeout (int or float optional):
+            Maximum timeout in seconds for the GET request (default 30).
 
-    Retour
-    ------
-    dict
-        Dictionnaire {name:value} des champs du formulaire.
+    Returns:
+        dict[str, str]: Dictionary {name: value} of the form fields.
 
-    Notes
-    -----
-    - Utilise amake_soup pour récupérer et parser la page en mode async.
-    - Si une session est fournie, elle est utilisée pour la requête GET.
-    - Tu peux ensuite réutiliser la même session pour le POST de login.
+    Raises:
+        ValueError: If no `<form method="post">` is found in the page.
+
+    Notes:
+        - Uses `amake_soup` to fetch and parse the page asynchronously.
+        - If a session is provided, it is used for the GET request.
+        - The same session can be reused for the login POST request.
     """
     soup = await amake_soup(url, headers=headers, backend=backend, session=session, timeout=timeout)
     form = soup.select_one('form[method="post"]')
     return extract_form(form)
 
 
-def which_backend(url, headers=None, timeout_req=8, timeout_pw=20, threshold_ratio=1.2):
+def which_backend(url: str, *,
+                  headers: dict | None = None,
+                  timeout_req: int = 8,
+                  timeout_pw: int = 20,
+                  threshold_ratio: float = 1.2) -> None:
     """
     Compare la longueur du texte visible (soup.text) obtenu via make_soup
     avec backend="requests" et backend="playwright".
@@ -614,7 +617,7 @@ async def get_soup_xml(url: str) -> BeautifulSoup:
 
 if __name__ == "__main__":
 
-    def test_make_soup_ironman():
+    def test_make_soup_ironman() -> None:
         url = "https://fr.wikipedia.org/wiki/Iron_Man"
         headers = {
             "User-Agent": (
@@ -626,15 +629,15 @@ if __name__ == "__main__":
 
         print("=== Test sync make_soup (requests) ===")
         soup = make_soup(url, backend="requests", headers=headers)
-        print("Titre:", soup.find("h1").text)
-        print("Premier paragraphe:", soup.find("p").text)
+        print("Titre:", soup.find("h1").text)  # type: ignore
+        print("Premier paragraphe:", soup.find("p").text)  # type: ignore
 
         print("=== Test sync make_soup (playwright) ===")
         soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=15000)
-        print("Titre (playwright):", soup_pw.find("h1").text)
-        print("Premier paragraphe (playwright):", soup_pw.find("p").text)
+        print("Titre (playwright):", soup_pw.find("h1").text)  # type: ignore
+        print("Premier paragraphe (playwright):", soup_pw.find("p").text)  # type: ignore
 
-    def test_make_soup_airbnb():
+    def test_make_soup_airbnb() -> None:
         url = "https://www.airbnb.com/"
         headers = {
             "User-Agent": (
@@ -652,7 +655,7 @@ if __name__ == "__main__":
         soup_pw = make_soup(url, backend="playwright", headers=headers, timeout=15)
         print("Contenu rendu (playwright):", soup_pw.find("div"))
 
-    def test_make_soup_dynamic():
+    def test_make_soup_dynamic() -> None:
         url = "https://coinmarketcap.com/"
         print("=== requests ===")
         soup_req = make_soup(url, backend="requests", timeout=10)
@@ -662,7 +665,7 @@ if __name__ == "__main__":
         soup_pw = make_soup(url, backend="playwright", timeout=20)
         print("Longueur HTML (playwright):", len(soup_pw.text))
 
-    def test_make_soup_twitter():
+    def test_make_soup_twitter() -> None:
         print("----------TEST TWITTER-------------")
         url = "https://x.com/"
         headers = {
