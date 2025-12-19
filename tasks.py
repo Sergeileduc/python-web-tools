@@ -3,13 +3,12 @@ import os
 import shutil
 import subprocess
 import sys
-
 import webbrowser
 from itertools import chain
 from pathlib import Path
 from platform import uname
 
-from invoke import task
+from invoke import task  # type: ignore
 
 """'Makefile' equivalent for invoke tool (invoke or inv).
 # Installation
@@ -28,6 +27,7 @@ or
 
 
 # UTILS -----------------------------------------------------------------------
+
 
 def get_platform():
     """Check the platform (Windos, Linux, or WSL)."""
@@ -53,10 +53,19 @@ def get_index_path():
 
 # TASKS------------------------------------------------------------------------
 
+
 @task
 def lint(c):
     """flake8 - static check for python files"""
     c.run("flake8 .")
+    c.run("pre-commit run --all-files")
+
+
+@task
+def mypy(c):
+    """mypy"""
+    print("run mypy")
+    c.run("mypy")
 
 
 @task
@@ -92,15 +101,10 @@ def cleanbuild(c):
         shutil.rmtree('build')
     with contextlib.suppress(FileNotFoundError):
         shutil.rmtree('dist')
-
-
-@task
-def cleancomics(c):
-    """Clean .cbz and .cbr files"""
-    p = Path('.')
-    comics = p.rglob('*.cb[rz]')
-    for comic in comics:
-        comic.unlink()
+    eggs = Path('.').glob('*.egg-info')
+    with contextlib.suppress(FileNotFoundError):
+        for egg in eggs:
+            shutil.rmtree(egg)
 
 
 @task
@@ -112,7 +116,7 @@ def cleandoc(c):
         shutil.rmtree(p)
 
 
-@task(cleantest, cleanbuild, cleancomics)
+@task(cleantest, cleanbuild, cleandoc)
 def clean(c):
     """Equivalent to both cleanbuild and cleantest..."""
     print("Cleaning")
