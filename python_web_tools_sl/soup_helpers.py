@@ -1,22 +1,17 @@
 """File for some tools."""
 
-import asyncio
+import logging
+import warnings
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union  # noqa: F401
+
 import aiohttp
 import requests
-import logging
-from typing import Any, Optional, List, Tuple, Union, TYPE_CHECKING
-import warnings
-
-from requests_html import AsyncHTMLSession, HTMLResponse
-from playwright.sync_api import sync_playwright
-from playwright.async_api import async_playwright
-
-
 from bs4 import BeautifulSoup, Tag
-from discord.utils import find as disc_find
+from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
+from requests_html import AsyncHTMLSession, HTMLResponse
 
 if TYPE_CHECKING:
-    from requests import Timeout
     from requests_html import HTMLSession
 else:
     try:
@@ -24,16 +19,19 @@ else:
     except ImportError:
         HTMLSession = None
 
+TimeoutType = Union[int, float, None]
 
 logger = logging.getLogger(__name__)
 
-headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}  # noqa:E501
+headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"  # noqa: E501
+}  # noqa:E501
 
 
 def make_soup(
     url: str,
     parser: str = "html.parser",
-    timeout: int = 3,
+    timeout: TimeoutType = 3,
     ssl: bool = True,
     backend: str = "requests",
     headers: dict | None = None,
@@ -75,7 +73,7 @@ def make_soup(
             # crée et ferme automatiquement la session
             with HTMLSession() as s:
                 resp = s.get(url, timeout=timeout, verify=ssl, headers=headers)
-                resp.html.render()  # type: ignore
+                resp.html.render()  # type: ignore[attr-defined]
                 return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
         else:
             # utilise la session fournie, sans la fermer
@@ -106,9 +104,10 @@ def make_soup(
 
 
 async def amake_soup(
-    url: str, *,
+    url: str,
+    *,
     parser: str = "html.parser",
-    timeout: int = 3,
+    timeout: TimeoutType = 3,
     ssl: bool = False,
     backend: str = "aiohttp",
     headers: dict | None = None,
@@ -161,19 +160,28 @@ async def amake_soup(
     if backend == "requests_html" and AsyncHTMLSession is not None:
         if session is None:
             session = AsyncHTMLSession()
-            # type: ignore
-            resp: Any = await session.get(url, timeout=timeout,
-                                          verify=ssl, headers=headers)  # type: ignore
+            # Cast en Any pour éviter les erreurs sur verify/timeout
+            session_any: Any = session
+            resp: Any = await session_any.get(
+                url, timeout=timeout, verify=ssl, headers=headers  # type: ignore[call-arg]
+            )  # type: ignore[call-arg]
+
             await resp.html.arender()  # ignore: type
             return BeautifulSoup(resp.html.html, features=parser)
         else:
-            resp = await session.get(url, timeout=timeout,
-                                     verify=ssl, headers=headers)  # type: ignore
+            resp = await session.get(
+                url,
+                timeout=timeout,  # type: ignore[call-arg, arg-type]
+                verify=ssl,  # type: ignore
+                headers=headers,
+            )  # type: ignore[call-arg]
+
             await resp.html.arender()  # type: ignore
             return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
 
     elif backend == "httpx":
         import httpx
+
         if session is None:
             async with httpx.AsyncClient(timeout=timeout, verify=ssl, headers=headers) as client:
                 resp = await client.get(url)
@@ -204,7 +212,7 @@ async def amake_soup(
                     text = await resp.text()
                     return BeautifulSoup(text, features=parser)
         else:
-            async with session.get(url, ssl=ssl, headers=headers) as resp:
+            async with session.get(url, ssl=ssl, headers=headers) as resp:  # type: ignore[arg-type]
                 resp.raise_for_status()
                 text = await resp.text()
                 return BeautifulSoup(text, features=parser)
@@ -233,13 +241,13 @@ def soup_from_text(text: str, parser: str = "html.parser") -> BeautifulSoup:
     return BeautifulSoup(text, features=parser)
 
 
-def extract_name_value_pairs(soup: BeautifulSoup, selector: str, attr: str = "value") -> dict:
+def extract_name_value_pairs(soup: BeautifulSoup | Tag, selector: str, attr: str = "value") -> dict:
     """
     Extrait les paires (name:attr) des balises HTML sélectionnées.
 
     Paramètres
     ----------
-    soup : BeautifulSoup
+    soup : BeautifulSoup | Tag
         Objet BeautifulSoup représentant le DOM ou un sous-arbre.
     selector : str
         Sélecteur CSS pour cibler les balises (ex. "input", "meta").
@@ -274,11 +282,7 @@ def extract_name_value_pairs(soup: BeautifulSoup, selector: str, attr: str = "va
     {'viewport': 'width=device-width'}
     """
     items = soup.select(selector)
-    return {
-        i["name"]: i[attr]
-        for i in items
-        if i.has_attr("name") and i.has_attr(attr)
-    }
+    return {i["name"]: i[attr] for i in items if i.has_attr("name") and i.has_attr(attr)}
 
 
 def extract_form(form: Tag) -> dict:
@@ -316,7 +320,7 @@ def extract_form_from_url(
     headers: dict | None = None,
     backend: str = "requests",
     session: requests.Session | HTMLSession | None = None,
-    timeout: int = 30,
+    timeout: TimeoutType = 30,
 ) -> dict[str, str]:
     """
     Fetches a page and extracts(name: value) pairs from form[method="post"]
@@ -349,11 +353,12 @@ def extract_form_from_url(
 
 
 async def aextract_form_from_url(
-    url: str, *,
+    url: str,
+    *,
     headers: dict | None = None,
     backend: str = "aiohttp",
     session: aiohttp.ClientSession | AsyncHTMLSession | HTMLSession | None = None,
-    timeout: int = 30,
+    timeout: TimeoutType = 30,
 ) -> dict:
     """
     Asynchronous version of extract_form_from_url. Fetches a login page, selects the first
@@ -381,14 +386,19 @@ async def aextract_form_from_url(
     """
     soup = await amake_soup(url, headers=headers, backend=backend, session=session, timeout=timeout)
     form = soup.select_one('form[method="post"]')
+    if form is None:
+        raise ValueError("No <form method='post'> found in the page")
     return extract_form(form)
 
 
-def which_backend(url: str, *,
-                  headers: dict | None = None,
-                  timeout_req: int = 8,
-                  timeout_pw: int = 20,
-                  threshold_ratio: float = 1.2) -> None:
+def which_backend(
+    url: str,
+    *,
+    headers: dict | None = None,
+    timeout_req: int = 8,
+    timeout_pw: int = 20,
+    threshold_ratio: float = 1.2,
+) -> None:
     """
     Compare la longueur du texte visible (soup.text) obtenu via make_soup
     avec backend="requests" et backend="playwright".
@@ -518,14 +528,17 @@ def choose_backend(url: str, headers: dict | None = None, threshold_ratio: float
     - Cela évite de coder deux fois la logique de détection (requests vs playwright).
     - Tu peux l’intégrer dans une boucle sur une liste d’URLs pour traiter en masse.
     """
-    return "playwright" if is_dynamic(url,
-                                      headers=headers,
-                                      threshold_ratio=threshold_ratio) else "requests"
+    return (
+        "playwright"
+        if is_dynamic(url, headers=headers, threshold_ratio=threshold_ratio)
+        else "requests"
+    )
 
 
 ######################################################################################
 # LEGACY
 ######################################################################################
+
 
 async def get_soup_lxml(url: str) -> BeautifulSoup:
     """Return a BeautifulSoup soup from given url, Parser is lxml.
@@ -540,16 +553,16 @@ async def get_soup_lxml(url: str) -> BeautifulSoup:
     warnings.warn(
         "get_soup_lxml est obsolète, utilisez make_soup ou amake_soup",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     # get HTML page with async GET request
     async with aiohttp.ClientSession() as session:
-        async with session.get(url,
-                               timeout=aiohttp.ClientTimeout(total=3),
-                               ssl=False, headers=headers) as resp:
+        async with session.get(
+            url, timeout=aiohttp.ClientTimeout(total=3), ssl=False, headers=headers
+        ) as resp:
             text = await resp.text()
-    return BeautifulSoup(text, 'lxml')
+    return BeautifulSoup(text, "lxml")
 
 
 async def get_soup_html(url: str) -> BeautifulSoup:
@@ -565,33 +578,14 @@ async def get_soup_html(url: str) -> BeautifulSoup:
     warnings.warn(
         "get_soup_html est obsolète, utilisez make_soup ou amake_soup",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     # get HTML page with async GET request
     async with aiohttp.ClientSession() as session:
-        async with session.get(url,
-                               timeout=aiohttp.ClientTimeout(total=3),
-                               ssl=False) as resp:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=3), ssl=False) as resp:
             text = await resp.text()
     # BeautifulSoup will transform raw HTML in a tree easy to parse
-    return BeautifulSoup(text, features='html.parser')
-
-
-def args_separator_for_log_function(guild, args):
-    """Check the args if there are user, channel and command."""
-    commands = ['kick', 'clear', 'ban']
-    [user, command, channel] = [None, None, None]  # They are defaulted to None, if any of them is specified, it will be changed  # noqa:E501
-    for word in args:
-        # if disc_get(guild.members, name=word) is not None: # if word is a member of the guild  # noqa:E501
-        if disc_find(lambda m: m.name.lower() == word.lower(), guild.members) is not None:  # same, but case insensitive  # noqa:E501
-            user = word.lower()
-        # elif disc_get(guild.text_channels, name=word) is not None: # if word is a channel of the guild  # noqa:E501
-        elif disc_find(lambda t: t.name.lower() == word.lower(), guild.text_channels) is not None:  # same, but case insensitive  # noqa:E501
-            channel = word.lower()
-        elif word in commands:  # if word is a command
-            command = word.lower()
-    # variables not specified in the args are defaulted to None
-    return [user, command, channel]
+    return BeautifulSoup(text, features="html.parser")
 
 
 async def get_soup_xml(url: str) -> BeautifulSoup:
@@ -607,12 +601,11 @@ async def get_soup_xml(url: str) -> BeautifulSoup:
     warnings.warn(
         "get_soup_xml est obsolète, utilisez make_soup ou amake_soup",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     asession = AsyncHTMLSession()
-    r = await asession.get(url, headers=headers, timeout=3)
-    await asession.close()
-    return BeautifulSoup(r.text, 'xml')
+    r: HTMLResponse = await asession.get(url, headers=headers, timeout=3)  # type: ignore
+    return BeautifulSoup(r.text, "xml")
 
 
 if __name__ == "__main__":
@@ -706,9 +699,9 @@ if __name__ == "__main__":
 
     # Liste d'URLs à tester
     urls_expected = {
-        "https://fr.wikipedia.org/wiki/Iron_Man": False,   # attendu: statique
-        "http://quotes.toscrape.com/js/": True,            # attendu: dynamique
-        "https://x.com/": True                             # attendu: dynamique
+        "https://fr.wikipedia.org/wiki/Iron_Man": False,  # attendu: statique
+        "http://quotes.toscrape.com/js/": True,  # attendu: dynamique
+        "https://x.com/": True,  # attendu: dynamique
     }
 
     # Boucle de test

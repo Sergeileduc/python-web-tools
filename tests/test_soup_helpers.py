@@ -1,6 +1,7 @@
-from python_tools_sl.decorators.pauses import with_pause
 import pytest
-from python_web_tools_sl.soup_helpers import make_soup, is_dynamic, choose_backend
+
+from python_tools_sl.decorators.pauses import with_pause
+from python_web_tools_sl.soup_helpers import choose_backend, is_dynamic, make_soup
 
 HEADERS = {
     "User-Agent": (
@@ -51,15 +52,18 @@ def test_make_soup_twitter(backend):
 @with_pause(2, message="pause après chaque test backend")
 def test_is_dynamic_and_choose_backend():
     urls_expected = {
-        "https://fr.wikipedia.org/wiki/Iron_Man": False,   # attendu: statique
-        "http://quotes.toscrape.com/js/": True,            # attendu: dynamique
-        "https://x.com/": True                             # attendu: dynamique
+        "https://fr.wikipedia.org/wiki/Iron_Man": False,  # attendu: statique
+        "http://quotes.toscrape.com/js/": True,  # attendu: dynamique
+        "https://x.com/": True,  # attendu: dynamique
     }
     for url, expected in urls_expected.items():
-        result = is_dynamic(url,
-                            headers=HEADERS, threshold_ratio=1.2,
-                            timeout_req=60, timeout_pw=120,
-                            )
+        result = is_dynamic(
+            url,
+            headers=HEADERS,
+            threshold_ratio=1.2,
+            timeout_req=60,
+            timeout_pw=120,
+        )
         assert result == expected
 
     for url in urls_expected.keys():

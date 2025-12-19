@@ -1,13 +1,14 @@
-from python_tools_sl.decorators.pauses import with_pause, with_pause_async
-
 import pytest
-from python_web_tools_sl.soup_helpers import (make_soup, amake_soup,
-                                              extract_name_value_pairs,
-                                              extract_form,
-                                              extract_form_from_url,
-                                              aextract_form_from_url,
-                                              )
 
+from python_tools_sl.decorators.pauses import with_pause, with_pause_async
+from python_web_tools_sl.soup_helpers import (  # noqa: F401
+    aextract_form_from_url,
+    amake_soup,
+    extract_form,
+    extract_form_from_url,
+    extract_name_value_pairs,
+    make_soup,
+)
 
 HEADERS = {
     "User-Agent": (
@@ -27,6 +28,7 @@ HEADERS = {
 #     assert tags["viewport"].startswith("width=")
 #     assert "generator" in tags
 #     assert "MediaWiki" in tags["generator"]
+
 
 @with_pause(2, message="ouais, pause de 2 secondes pour pas se faire timeout")
 def test_extract_name_value_pairs_syc():

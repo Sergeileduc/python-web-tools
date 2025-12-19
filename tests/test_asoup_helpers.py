@@ -1,7 +1,7 @@
-import asyncio
 import pytest
-from python_web_tools_sl.soup_helpers import amake_soup
+
 from python_tools_sl.decorators.pauses import with_pause_async
+from python_web_tools_sl.soup_helpers import amake_soup
 
 
 @pytest.mark.asyncio
