@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union  # noqa: F40
 import aiohttp
 import requests
 from bs4 import BeautifulSoup, Tag
-from playwright.async_api import async_playwright
-from playwright.sync_api import sync_playwright
+
 from requests_html import AsyncHTMLSession, HTMLResponse
 
 if TYPE_CHECKING:
@@ -18,6 +17,29 @@ else:
         from requests_html import HTMLSession
     except ImportError:
         HTMLSession = None
+
+
+def get_playwright():
+    try:
+        from playwright.sync_api import sync_playwright
+
+        return sync_playwright
+    except ImportError:
+        raise RuntimeError(
+            "Playwright n'est pas installé. Installe-le avec : pip install python-web-tools[playwright]"
+        )
+
+
+def get_async_playwright():
+    try:
+        from playwright.async_api import async_playwright
+
+        return async_playwright
+    except ImportError:
+        raise RuntimeError(
+            "Playwright n'est pas installé. Installe-le avec : pip install python-web-tools[playwright]"
+        )
+
 
 TimeoutType = Union[int, float, None]
 
@@ -82,7 +104,7 @@ def make_soup(
             return BeautifulSoup(resp.html.html, features=parser)  # type: ignore
 
     elif backend == "playwright":
-        with sync_playwright() as p:
+        with get_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.goto(url, timeout=(timeout or 0) * 1000)
@@ -193,7 +215,7 @@ async def amake_soup(
             return BeautifulSoup(resp.text, features=parser)  # type: ignore
 
     elif backend == "playwright":
-        async with async_playwright() as p:
+        async with get_async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             if headers:

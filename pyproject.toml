@@ -16,6 +16,7 @@ dependencies = [
     "beautifulsoup4",
     "lxml",
     "html5lib",
+    "python-tools-sl @ git+https://github.com/Sergeileduc/python-tools",
     "requests-html ; extra == 'requests_html'",
     "httpx ; extra == 'httpx'"
 ]
