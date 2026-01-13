@@ -8,7 +8,7 @@ authors = [
 ]
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 
 dependencies = [
     "requests",
@@ -39,7 +39,7 @@ exclude = ["tests*", "docs*"]
 ##### 🛠 DEV TOOLS #####
 [tool.black]
 line-length = 100
-target-version = ["py311", "py312", "py313"]
+target-version = ["py312", "py313"]
 skip-string-normalization = true
 include = '\.pyi?$'
 exclude = '''
@@ -65,7 +65,7 @@ skip_glob = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_unused_configs = true
 warn_unused_ignores = false
 warn_return_any = true
@@ -80,7 +80,7 @@ plugins = []
 files = ["python_web_tools_sl", "tests"]
 exclude = '''
 (
-    ^\.?venv.*$        # .venv, venv, venv11, .venv11, etc.
+    ^\.?venv.*$        # .venv, venv, .venv12, etc.
   | ^env.*$            # env, env3.12, etc.
 )
 '''

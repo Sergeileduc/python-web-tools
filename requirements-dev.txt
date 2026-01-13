@@ -5,4 +5,4 @@ flake8
 black
 isort
 pytest-asyncio
-git+https://github.com/Sergeileduc/python-tools.git@main
+git+https://github.com/Sergeileduc/python-tools.git
